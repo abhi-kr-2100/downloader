@@ -88,8 +88,9 @@ async fn download(
     let mut download_successful = false;
 
     if let Ok(file) = std::fs::OpenOptions::new()
-        .create_new(true)
         .write(true)
+        .create(true)
+        .truncate(true)
         .open(&summary.file_name)
     {
         let mut writer = std::io::BufWriter::new(file);
