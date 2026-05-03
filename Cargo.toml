@@ -20,17 +20,17 @@ verify = [ "digest" ]
 
 # Pass down features to reqwest:
 default-tls = ["reqwest/default-tls"]
-rustls-tls = ["reqwest/rustls-tls"]
+rustls-tls = ["reqwest/rustls"]
 
 [dependencies]
 futures = { version = "0.3" }
-reqwest = { version = "0.12", default-features = false }
-rand = { version = "0.8" }
-thiserror = { version = "1.0" }
-tokio = { version = "1.23", features = [ "rt-multi-thread", "time" ] }
+reqwest = { version = "0.13", default-features = false }
+rand = { version = "0.10" }
+thiserror = { version = "2.0" }
+tokio = { version = "1.52", features = [ "rt-multi-thread", "time" ] }
 
-digest = { version = "0.10.1", optional = true }
-indicatif = { version = "0.17.2", optional = true }
+digest = { version = "0.11.3", optional = true }
+indicatif = { version = "0.18.4", optional = true }
 
 [dev-dependencies]
-sha3 = "0.10.0"  # used in examples
+sha3 = "0.11.0"  # used in examples

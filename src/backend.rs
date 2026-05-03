@@ -6,13 +6,13 @@
 use crate::{Download, DownloadSummary, Error, Result, Verification};
 
 use futures::stream::{self, StreamExt};
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 
 use std::io::{Seek, SeekFrom, Write};
 
 fn select_url(urls: &[String]) -> String {
     assert!(!urls.is_empty());
-    urls.choose(&mut rand::thread_rng()).unwrap().clone()
+    urls.choose(&mut rand::rng()).unwrap().clone()
 }
 
 async fn download_url(
