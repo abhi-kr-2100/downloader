@@ -1,6 +1,5 @@
 /target
 **/*.rs.bk # backup files from rustfmt
-Cargo.lock
 .cargo-ok
 
 *.patch
