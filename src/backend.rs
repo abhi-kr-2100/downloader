@@ -3,7 +3,7 @@
 
 //! The actual download code
 
-use crate::{Download, DownloadSummary, Error, Result, Verification};
+use crate::{Backend, Download, DownloadSummary, Error, Response, Result, Verification};
 
 use futures::stream::{self, StreamExt};
 use rand::seq::IndexedRandom;
@@ -15,14 +15,14 @@ fn select_url(urls: &[String]) -> String {
     urls.choose(&mut rand::rng()).unwrap().clone()
 }
 
-async fn download_url(
-    client: reqwest::Client,
+async fn download_url<B: Backend>(
+    client: B,
     url: String,
     writer: &mut std::io::BufWriter<std::fs::File>,
     progress: &mut crate::Progress,
     message: &str,
 ) -> u16 {
-    if let Ok(mut response) = client.get(&url).send().await {
+    if let Ok(mut response) = client.get(&url).await {
         let total = response.content_length();
         let mut current: u64 = 0;
         writer.seek(SeekFrom::Start(current)).unwrap_or(0);
@@ -36,11 +36,11 @@ async fn download_url(
             progress.progress(current);
         }
 
-        let result = response.status().as_u16();
+        let result = response.status();
         progress.set_message(&format!("{message} - {result}"));
         result
     } else {
-        reqwest::StatusCode::BAD_REQUEST.as_u16()
+        400 // BAD_REQUEST
     }
 }
 
@@ -68,8 +68,8 @@ async fn verify_download(
     result
 }
 
-async fn download(
-    client: reqwest::Client,
+async fn download<B: Backend>(
+    client: B,
     mut download: Download,
     retries: u16,
 ) -> Result<DownloadSummary> {
@@ -109,21 +109,18 @@ async fn download(
                 retries,
             );
 
-            let s = reqwest::StatusCode::from_u16(
-                download_url(
-                    client.clone(),
-                    url.clone(),
-                    &mut writer,
-                    &mut progress,
-                    &message,
-                )
-                .await,
+            let status = download_url(
+                client.clone(),
+                url.clone(),
+                &mut writer,
+                &mut progress,
+                &message,
             )
-            .unwrap_or(reqwest::StatusCode::BAD_REQUEST);
+            .await;
 
-            summary.status.push((url.clone(), s.as_u16()));
+            summary.status.push((url.clone(), status));
 
-            if s.is_server_error() {
+            if (500..600).contains(&status) {
                 urls = urls
                     .iter()
                     .filter_map(|u| if u == &url { Some(u.clone()) } else { None })
@@ -133,7 +130,7 @@ async fn download(
                 }
             }
 
-            if s.is_success() {
+            if (200..300).contains(&status) {
                 download_successful = true;
                 break;
             }
@@ -159,8 +156,8 @@ async fn download(
 }
 
 /// Run the provided list of `downloads`, using the provided `client`
-pub(crate) fn run(
-    client: &mut reqwest::Client,
+pub(crate) fn run<B: Backend + 'static>(
+    client: &mut B,
     downloads: Vec<Download>,
     retries: u16,
     parallel_requests: u16,
@@ -179,8 +176,8 @@ pub(crate) fn run(
     rt.block_on(result).unwrap()
 }
 
-pub(crate) async fn async_run(
-    client: &mut reqwest::Client,
+pub(crate) async fn async_run<B: Backend + 'static>(
+    client: &mut B,
     downloads: Vec<Download>,
     retries: u16,
     parallel_requests: u16,

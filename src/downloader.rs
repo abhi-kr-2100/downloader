@@ -3,7 +3,7 @@
 
 //! The `Downloader` that holds all the logic to manage the `Downloads`
 
-use crate::{Download, DownloadSummary, Error, Result};
+use crate::{Backend, Download, DownloadSummary, Error, Result};
 
 use crate::progress::Factory;
 
@@ -81,20 +81,22 @@ fn validate_downloads(
 
 /// This is the main entry point: You need to have a `Downloader` and then can call
 /// `download` on that, passing in a list of `Download` objects.
-pub struct Downloader {
-    client: reqwest::Client,
+pub struct Downloader<B: Backend + 'static = reqwest::Client> {
+    client: B,
     parallel_requests: u16,
     retries: u16,
     download_folder: std::path::PathBuf,
 }
 
-impl Downloader {
+impl Downloader<reqwest::Client> {
     /// Create a `Builder` for `Downloader` to allow for fine-grained configuration.
     #[must_use]
     pub fn builder() -> Builder {
         Builder::default()
     }
+}
 
+impl<B: Backend + 'static> Downloader<B> {
     /// Start the download
     ///
     /// # Errors
@@ -224,11 +226,14 @@ impl Builder {
             .map_err(|e| Error::Setup(format!("Failed to set up backend: {e}")))
     }
 
-    /// Build a downloader with a specified `reqwest::Client`
+    /// Build a downloader with a specified backend
     ///
     /// # Errors
     /// * `Error::Setup`, when setup fails
-    pub fn build_with_client(&mut self, client: reqwest::Client) -> crate::Result<Downloader> {
+    pub fn build_with_backend<B: Backend + 'static>(
+        &mut self,
+        client: B,
+    ) -> crate::Result<Downloader<B>> {
         let download_folder = &self.download_folder;
         if download_folder.to_string_lossy().is_empty() {
             return Err(crate::Error::Setup(
@@ -248,6 +253,14 @@ impl Builder {
             retries: self.retries,
             download_folder: download_folder.clone(),
         })
+    }
+
+    /// Build a downloader with a specified `reqwest::Client`
+    ///
+    /// # Errors
+    /// * `Error::Setup`, when setup fails
+    pub fn build_with_client(&mut self, client: reqwest::Client) -> crate::Result<Downloader> {
+        self.build_with_backend(client)
     }
 
     /// Build a downloader.

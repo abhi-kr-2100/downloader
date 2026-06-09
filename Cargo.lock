@@ -201,6 +201,7 @@ dependencies = [
 name = "downloader"
 version = "0.2.7"
 dependencies = [
+ "bytes",
  "digest",
  "futures",
  "indicatif",
