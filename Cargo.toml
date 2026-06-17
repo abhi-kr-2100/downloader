@@ -13,18 +13,11 @@ keywords = [ "http", "https", "download" ]
 categories = [ "web-programming::http-client" ]
 
 [features]
-default = [ "default-tls" ]
-
 tui = [ "indicatif" ]
 verify = [ "digest" ]
 
-# Pass down features to reqwest:
-default-tls = ["reqwest/default-tls"]
-rustls-tls = ["reqwest/rustls"]
-
 [dependencies]
 futures = { version = "0.3" }
-reqwest = { version = "0.13", default-features = false }
 rand = { version = "0.10" }
 thiserror = { version = "2.0" }
 tokio = { version = "1.52", features = [ "rt-multi-thread", "time" ] }
@@ -32,6 +25,8 @@ tokio = { version = "1.52", features = [ "rt-multi-thread", "time" ] }
 digest = { version = "0.11.3", optional = true }
 indicatif = { version = "0.18.4", optional = true }
 bytes = "1.11.1"
+http = "1.4.2"
+url = "2.5.8"
 
 [dev-dependencies]
 sha3 = "0.11.0"  # used in examples

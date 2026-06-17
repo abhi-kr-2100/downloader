@@ -53,40 +53,6 @@ pub trait Backend: Clone + Send + Sync {
     fn get(&self, url: &str) -> impl std::future::Future<Output = Result<Self::Response>> + Send;
 }
 
-impl Response for reqwest::Response {
-    fn content_length(&self) -> Option<u64> {
-        self.content_length()
-    }
-
-    fn status(&self) -> u16 {
-        self.status().as_u16()
-    }
-
-    fn chunk(&mut self) -> impl std::future::Future<Output = Result<Option<bytes::Bytes>>> + Send {
-        async move {
-            self.chunk()
-                .await
-                .map_err(|e| Error::Setup(format!("Failed to get chunk: {e}")))
-        }
-    }
-}
-
-impl Backend for reqwest::Client {
-    type Response = reqwest::Response;
-
-    fn get(&self, url: &str) -> impl std::future::Future<Output = Result<Self::Response>> + Send {
-        let client = self.clone();
-        let url = url.to_string();
-        async move {
-            client
-                .get(url)
-                .send()
-                .await
-                .map_err(|e| Error::Setup(format!("Failed to send request: {e}")))
-        }
-    }
-}
-
 // ----------------------------------------------------------------------
 // - Error:
 // ----------------------------------------------------------------------

@@ -81,22 +81,20 @@ fn validate_downloads(
 
 /// This is the main entry point: You need to have a `Downloader` and then can call
 /// `download` on that, passing in a list of `Download` objects.
-pub struct Downloader<B: Backend + 'static = reqwest::Client> {
+pub struct Downloader<B: Backend + 'static> {
     client: B,
     parallel_requests: u16,
     retries: u16,
     download_folder: std::path::PathBuf,
 }
 
-impl Downloader<reqwest::Client> {
+impl<B: Backend + 'static> Downloader<B> {
     /// Create a `Builder` for `Downloader` to allow for fine-grained configuration.
     #[must_use]
     pub fn builder() -> Builder {
         Builder::default()
     }
-}
 
-impl<B: Backend + 'static> Downloader<B> {
     /// Start the download
     ///
     /// # Errors
@@ -156,37 +154,16 @@ impl<B: Backend + 'static> Downloader<B> {
 
 /// A builder for a `Downloader`
 pub struct Builder {
-    user_agent: String,
-    connect_timeout: std::time::Duration,
-    timeout: std::time::Duration,
     parallel_requests: u16,
     retries: u16,
     download_folder: std::path::PathBuf,
 }
 
 impl Builder {
-    /// Set the user agent to be used.
-    ///
-    /// A default value will be used if none is set.
-    pub fn user_agent(&mut self, user_agent: &str) -> &mut Self {
-        self.user_agent = user_agent.into();
-        self
-    }
-
-    /// Set the connection timeout.
-    ///
-    /// The default is 30s.
-    pub fn connect_timeout(&mut self, timeout: std::time::Duration) -> &mut Self {
-        self.connect_timeout = timeout;
-        self
-    }
-
-    /// Set the timeout.
-    ///
-    /// The default is 5min.
-    pub fn timeout(&mut self, timeout: std::time::Duration) -> &mut Self {
-        self.timeout = timeout;
-        self
+    /// Create a `Builder` for `Downloader` to allow for fine-grained configuration.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Set the number of parallel requests.
@@ -213,27 +190,11 @@ impl Builder {
         self
     }
 
-    /// Construct a new `reqwest::Client` configured with settings from the `Builder`
-    ///
-    /// # Errors
-    /// * `Error::Setup`, when setup fails
-    fn build_client(&self) -> crate::Result<reqwest::Client> {
-        reqwest::Client::builder()
-            .user_agent(self.user_agent.clone())
-            .connect_timeout(self.connect_timeout)
-            .timeout(self.timeout)
-            .build()
-            .map_err(|e| Error::Setup(format!("Failed to set up backend: {e}")))
-    }
-
     /// Build a downloader with a specified backend
     ///
     /// # Errors
     /// * `Error::Setup`, when setup fails
-    pub fn build_with_backend<B: Backend + 'static>(
-        &mut self,
-        client: B,
-    ) -> crate::Result<Downloader<B>> {
+    pub fn build<B: Backend + 'static>(&mut self, client: B) -> crate::Result<Downloader<B>> {
         let download_folder = &self.download_folder;
         if download_folder.to_string_lossy().is_empty() {
             return Err(crate::Error::Setup(
@@ -254,23 +215,6 @@ impl Builder {
             download_folder: download_folder.clone(),
         })
     }
-
-    /// Build a downloader with a specified `reqwest::Client`
-    ///
-    /// # Errors
-    /// * `Error::Setup`, when setup fails
-    pub fn build_with_client(&mut self, client: reqwest::Client) -> crate::Result<Downloader> {
-        self.build_with_backend(client)
-    }
-
-    /// Build a downloader.
-    ///
-    /// # Errors
-    /// * `Error::Setup`, when setup fails
-    pub fn build(&mut self) -> crate::Result<Downloader> {
-        let client = self.build_client()?;
-        self.build_with_client(client)
-    }
 }
 
 impl Default for Builder {
@@ -286,9 +230,6 @@ impl Default for Builder {
         };
 
         Self {
-            user_agent: format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
-            connect_timeout: std::time::Duration::from_secs(30),
-            timeout: std::time::Duration::from_secs(300),
             parallel_requests: 32,
             retries: 3,
             download_folder,

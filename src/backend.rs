@@ -40,7 +40,7 @@ async fn download_url<B: Backend>(
         progress.set_message(&format!("{message} - {result}"));
         result
     } else {
-        400 // BAD_REQUEST
+        http::StatusCode::BAD_REQUEST.as_u16()
     }
 }
 
@@ -109,7 +109,7 @@ async fn download<B: Backend>(
                 retries,
             );
 
-            let status = download_url(
+            let status_code = download_url(
                 client.clone(),
                 url.clone(),
                 &mut writer,
@@ -118,21 +118,23 @@ async fn download<B: Backend>(
             )
             .await;
 
-            summary.status.push((url.clone(), status));
+            summary.status.push((url.clone(), status_code));
 
-            if (500..600).contains(&status) {
-                urls = urls
-                    .iter()
-                    .filter_map(|u| if u == &url { Some(u.clone()) } else { None })
-                    .collect();
-                if urls.is_empty() {
+            if let Ok(status) = http::StatusCode::from_u16(status_code) {
+                if status.is_server_error() {
+                    urls = urls
+                        .iter()
+                        .filter_map(|u| if u == &url { Some(u.clone()) } else { None })
+                        .collect();
+                    if urls.is_empty() {
+                        break;
+                    }
+                }
+
+                if status.is_success() {
+                    download_successful = true;
                     break;
                 }
-            }
-
-            if (200..300).contains(&status) {
-                download_successful = true;
-                break;
             }
         }
     }
