@@ -3,7 +3,7 @@
 
 //! The actual download code
 
-use crate::{Backend, Download, DownloadSummary, Error, Response, Result, Verification};
+use crate::{Backend, Download, DownloadSummary, Error, Response, Result};
 
 use futures::stream::{self, StreamExt};
 use rand::seq::IndexedRandom;
@@ -44,30 +44,6 @@ async fn download_url<B: Backend>(
     }
 }
 
-async fn verify_download(
-    path: std::path::PathBuf,
-    verify_callback: crate::Verify,
-    progress: crate::Progress,
-    message: &str,
-) -> Verification {
-    let p = progress.clone();
-    let result =
-        tokio::task::spawn_blocking(move || verify_callback(path, &move |c: u64| p.progress(c)))
-            .await
-            .unwrap_or(crate::Verification::NotVerified);
-    progress.set_message(&format!(
-        "{} - {}",
-        message,
-        match result {
-            Verification::NotVerified => "not verified",
-            Verification::Failed => "FAILED",
-            Verification::Ok => "Ok",
-        }
-    ));
-    progress.done();
-    result
-}
-
 async fn download<B: Backend>(
     client: B,
     mut download: Download,
@@ -76,14 +52,12 @@ async fn download<B: Backend>(
     let mut summary = DownloadSummary {
         status: Vec::new(),
         file_name: std::mem::take(&mut download.file_name),
-        verified: Verification::NotVerified,
     };
 
     let mut urls = std::mem::take(&mut download.urls);
     assert!(!urls.is_empty());
 
     let mut progress = download.progress.expect("This has been set!").clone();
-    let mut message = String::new();
 
     let mut download_successful = false;
 
@@ -98,23 +72,21 @@ async fn download<B: Backend>(
         for retry in 1..=retries {
             let url = select_url(&urls);
 
-            message = format!(
-                "{} {}/{}",
-                &summary
-                    .file_name
-                    .file_name()
-                    .unwrap_or_else(|| std::ffi::OsStr::new("<unknown>"))
-                    .to_string_lossy(),
-                retry,
-                retries,
-            );
-
             let status_code = download_url(
                 client.clone(),
                 url.clone(),
                 &mut writer,
                 &mut progress,
-                &message,
+                &format!(
+                    "{} {}/{}",
+                    &summary
+                        .file_name
+                        .file_name()
+                        .unwrap_or_else(|| std::ffi::OsStr::new("<unknown>"))
+                        .to_string_lossy(),
+                    retry,
+                    retries,
+                ),
             )
             .await;
 
@@ -143,16 +115,7 @@ async fn download<B: Backend>(
         return Err(Error::Download(summary));
     }
 
-    summary.verified = verify_download(
-        summary.file_name.clone(),
-        std::mem::replace(&mut download.verify_callback, crate::verify::noop()),
-        progress.clone(),
-        &message,
-    )
-    .await;
-    if summary.verified == Verification::Failed {
-        return Err(Error::Verification(summary));
-    }
+    progress.done();
 
     Ok(summary)
 }

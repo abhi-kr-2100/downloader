@@ -28,12 +28,10 @@ pub mod backend;
 pub mod download;
 pub mod downloader;
 pub mod progress;
-pub mod verify;
 
 pub use crate::download::Download;
 pub use crate::downloader::Downloader;
 pub use crate::progress::Progress;
-pub use crate::verify::{SimpleProgress, Verification, Verify};
 
 /// Trait for an HTTP response
 pub trait Response: Send {
@@ -72,9 +70,6 @@ pub enum Error {
     /// A download failed
     #[error("Download failed for {0}")]
     Download(DownloadSummary),
-    /// Download file verification failed.
-    #[error("Verification failed for {0}")]
-    Verification(DownloadSummary),
 }
 
 /// `Result` type for the `gng_shared` library
@@ -90,21 +85,10 @@ pub struct DownloadSummary {
     pub status: Vec<(String, u16)>,
     /// The path this URL has been downloaded to.
     pub file_name: std::path::PathBuf,
-    /// File verification status
-    pub verified: Verification,
 }
 
 fn to_fmt(f: &mut std::fmt::Formatter<'_>, summary: &DownloadSummary) -> std::fmt::Result {
-    writeln!(
-        f,
-        "{}: (verification: {}):",
-        summary.file_name.to_string_lossy(),
-        match summary.verified {
-            Verification::NotVerified => "unverified",
-            Verification::Failed => "FAILED",
-            Verification::Ok => "Ok",
-        },
-    )?;
+    writeln!(f, "{}:", summary.file_name.to_string_lossy(),)?;
     for i in 0..summary.status.len() {
         writeln!(
             f,

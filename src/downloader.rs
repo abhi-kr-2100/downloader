@@ -68,7 +68,6 @@ fn validate_downloads(
             urls,
             file_name,
             progress: Some(progress),
-            verify_callback: d.verify_callback.clone(),
         });
     }
 

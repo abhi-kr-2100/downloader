@@ -17,8 +17,6 @@ pub struct Download {
     pub progress: Option<crate::Progress>,
     /// The file name to be used for the downloaded file.
     pub file_name: std::path::PathBuf,
-    /// A callback used to verify the download with.
-    pub verify_callback: crate::Verify,
 }
 
 fn file_name_from_url(url: &str) -> std::path::PathBuf {
@@ -43,7 +41,6 @@ impl Download {
             urls: vec![url.to_owned()],
             progress: None,
             file_name: file_name_from_url(url),
-            verify_callback: crate::verify::noop(),
         }
     }
 
@@ -57,7 +54,6 @@ impl Download {
             urls,
             progress: None,
             file_name: file_name_from_url(&url),
-            verify_callback: crate::verify::noop(),
         }
     }
 
@@ -77,15 +73,6 @@ impl Download {
     #[must_use]
     pub fn progress(mut self, progress: crate::Progress) -> Self {
         self.progress = Some(progress);
-        self
-    }
-
-    /// Register a callback to verify a download
-    ///
-    /// Default is to assume the file was downloaded correctly.
-    #[must_use]
-    pub fn verify(mut self, func: crate::Verify) -> Self {
-        self.verify_callback = func;
         self
     }
 }
