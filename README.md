@@ -9,7 +9,7 @@
 internet. It takes a simple simple and straightforward approach using a url
 builder and fetcher.
 
-It supports system proxy configuration, parallel downloads of different files,
+It supports parallel downloads of different files,
 validation of downloads via a callback, as well as files mirroring across different
 machines.
 
@@ -29,30 +29,56 @@ version of the package.
 
 ### Example
 
+The library is generic over the HTTP backend. You must provide an implementation of the `Backend` trait.
+
 ```rust
-use downloader::downloader::Builder;
-use downloader::Download;
+use downloader::{Downloader, Download, Backend, Response, Result};
 use std::path::Path;
-use std::time::Duration;
+use bytes::Bytes;
+use async_trait::async_trait;
+
+// Example of a minimal backend implementation (e.g., using reqwest)
+#[derive(Clone)]
+struct MyBackend(reqwest::Client);
+
+#[async_trait]
+impl Backend for MyBackend {
+    async fn get(&self, url: &url::Url) -> Result<Box<dyn Response + Send>> {
+        let response = self.0.get(url.clone()).send().await
+            .map_err(|e| downloader::Error::Backend(e.to_string()))?;
+        Ok(Box::new(MyResponse(response)))
+    }
+}
+
+struct MyResponse(reqwest::Response);
+
+#[async_trait]
+impl Response for MyResponse {
+    fn content_length(&self) -> Option<u64> { self.0.content_length() }
+    fn status(&self) -> http::StatusCode {
+        http::StatusCode::from_u16(self.0.status().as_u16()).unwrap()
+    }
+    async fn chunk(&mut self) -> Result<Option<Bytes>> {
+        self.0.chunk().await.map_err(|e| downloader::Error::Backend(e.to_string()))
+    }
+}
 
 fn main() {
-    let image = Download::new("https://example.com/example.png");
-    // other downloads...
-    // image.urls.push("https://example.com/example2.png");
-
-    let mut dl = Builder::default()
-        .connect_timeout(Duration::from_secs(4))
-        .download_folder(Path::new("../res")) // or any arbitrary path
-        .parallel_requests(8)
+    let mut dl = Downloader::builder()
+        .backend(MyBackend(reqwest::Client::new()))
+        .download_folder(Path::new("/tmp"))
         .build()
         .unwrap();
 
-    let response = dl.download(&[image]).unwrap(); // other error handling
+    let image = Download::new("https://example.com/example.png");
+    let results = dl.download(&[image]).unwrap();
 
-    response.iter().for_each(|v| match v {
-        Ok(v) => println!("Downloaded: {:?}", v),
-        Err(e) => println!("Error: {:?}", e),
-    })
+    for result in results {
+        match result {
+            Ok(summary) => println!("Downloaded: {:?}", summary.file_name),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
 }
 ```
 

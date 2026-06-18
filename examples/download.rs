@@ -68,8 +68,57 @@ impl downloader::progress::Reporter for SimpleReporter {
     }
 }
 
+struct ReqwestResponse(reqwest::Response);
+
+#[async_trait::async_trait]
+impl downloader::Response for ReqwestResponse {
+    fn content_length(&self) -> Option<u64> {
+        self.0.content_length()
+    }
+
+    fn status(&self) -> http::StatusCode {
+        http::StatusCode::from_u16(self.0.status().as_u16()).unwrap()
+    }
+
+    async fn chunk(&mut self) -> downloader::Result<Option<bytes::Bytes>> {
+        self.0
+            .chunk()
+            .await
+            .map_err(|e| downloader::Error::Backend(e.to_string()))
+    }
+}
+
+#[derive(Clone)]
+struct ReqwestBackend(reqwest::Client);
+
+#[async_trait::async_trait]
+impl downloader::Backend for ReqwestBackend {
+    async fn get(&self, url: &url::Url) -> downloader::Result<Box<dyn downloader::Response + Send>> {
+        let response = self
+            .0
+            .get(url.clone())
+            .send()
+            .await
+            .map_err(|e| downloader::Error::Backend(e.to_string()))?;
+        Ok(Box::new(ReqwestResponse(response)))
+    }
+}
+
 fn main() {
+    let client = reqwest::Client::builder()
+        .user_agent(format!(
+            "{}/{}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        ))
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+        .unwrap();
+    let backend = ReqwestBackend(client);
+
     let mut downloader = Downloader::builder()
+        .backend(backend)
         .download_folder(&temp_dir())
         .parallel_requests(1)
         .build()

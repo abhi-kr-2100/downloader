@@ -6,7 +6,7 @@
 //! It tries to make it very simple to just specify a couple of
 //! URLs and then go and download all of the files.
 //!
-//! It supports system proxy configuration, parallel downloads of different files,
+//! It supports parallel downloads of different files,
 //! validation of downloads via a callback, as well as files being mirrored on
 //! different machines.
 //!
@@ -30,6 +30,7 @@ pub mod downloader;
 pub mod progress;
 pub mod verify;
 
+pub use crate::backend::{Backend, Response};
 pub use crate::download::Download;
 pub use crate::downloader::Downloader;
 pub use crate::progress::Progress;
@@ -57,6 +58,9 @@ pub enum Error {
     /// Download file verification failed.
     #[error("Verification failed for {0}")]
     Verification(DownloadSummary),
+    /// A backend-specific error occurred.
+    #[error("Backend error: {0}")]
+    Backend(String),
 }
 
 /// `Result` type for the `gng_shared` library
