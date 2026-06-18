@@ -17,7 +17,6 @@ categories = [ "web-programming::http-client" ]
 
 [dependencies]
 futures = { version = "0.3" }
-rand = { version = "0.10" }
 thiserror = { version = "2.0" }
 tokio = { version = "1.52", features = [ "rt-multi-thread", "time" ] }
 

@@ -22,21 +22,20 @@ fn validate_downloads(
     let mut result = Vec::with_capacity(downloads.len());
 
     for d in downloads {
-        if d.urls.is_empty() {
+        if d.url.is_empty() {
             return Err(Error::DownloadDefinition(String::from(
                 "No URL found to download.",
             )));
         }
 
-        for u in &d.urls {
-            if !known_urls.insert(u) {
-                return Err(Error::DownloadDefinition(format!(
-                    "Download URL \"{u}\" is used more than once.",
-                )));
-            }
+        if !known_urls.insert(&d.url) {
+            return Err(Error::DownloadDefinition(format!(
+                "Download URL \"{}\" is used more than once.",
+                d.url,
+            )));
         }
 
-        let urls = d.urls.clone();
+        let url = d.url.clone();
 
         if d.file_name.to_string_lossy().is_empty() {
             return Err(Error::DownloadDefinition(String::from(
@@ -65,7 +64,7 @@ fn validate_downloads(
         };
 
         result.push(Download {
-            urls,
+            url,
             file_name,
             progress: Some(progress),
         });

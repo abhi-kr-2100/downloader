@@ -10,9 +10,8 @@
 
 /// A `Download`.
 pub struct Download {
-    /// A list of URLs that this file can be retrieved from. `downloader` will pick
-    /// the download URL from this list at random.
-    pub urls: Vec<String>,
+    /// The URL to download.
+    pub url: String,
     /// A progress `Reporter` to report the download process with.
     pub progress: Option<crate::Progress>,
     /// The file name to be used for the downloaded file.
@@ -38,22 +37,9 @@ impl Download {
     #[must_use]
     pub fn new(url: &str) -> Self {
         Self {
-            urls: vec![url.to_owned()],
+            url: url.to_owned(),
             progress: None,
             file_name: file_name_from_url(url),
-        }
-    }
-
-    /// Create a new `Download` based on a list of mirror urls.
-    #[must_use]
-    pub fn new_mirrored(urls: &[&str]) -> Self {
-        let urls: Vec<String> = urls.iter().map(|s| String::from(*s)).collect();
-        let url = urls.first().unwrap_or(&String::new()).clone();
-
-        Self {
-            urls,
-            progress: None,
-            file_name: file_name_from_url(&url),
         }
     }
 

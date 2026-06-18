@@ -6,14 +6,8 @@
 use crate::{Backend, Download, DownloadSummary, Error, Response, Result};
 
 use futures::stream::{self, StreamExt};
-use rand::seq::IndexedRandom;
 
 use std::io::{Seek, SeekFrom, Write};
-
-fn select_url(urls: &[String]) -> String {
-    assert!(!urls.is_empty());
-    urls.choose(&mut rand::rng()).unwrap().clone()
-}
 
 async fn download_url<B: Backend>(
     client: B,
@@ -54,8 +48,8 @@ async fn download<B: Backend>(
         file_name: std::mem::take(&mut download.file_name),
     };
 
-    let mut urls = std::mem::take(&mut download.urls);
-    assert!(!urls.is_empty());
+    let url = std::mem::take(&mut download.url);
+    assert!(!url.is_empty());
 
     let mut progress = download.progress.expect("This has been set!").clone();
 
@@ -70,8 +64,6 @@ async fn download<B: Backend>(
         let mut writer = std::io::BufWriter::new(file);
 
         for retry in 1..=retries {
-            let url = select_url(&urls);
-
             let status_code = download_url(
                 client.clone(),
                 url.clone(),
@@ -94,13 +86,8 @@ async fn download<B: Backend>(
 
             if let Ok(status) = http::StatusCode::from_u16(status_code) {
                 if status.is_server_error() {
-                    urls = urls
-                        .iter()
-                        .filter_map(|u| if u == &url { Some(u.clone()) } else { None })
-                        .collect();
-                    if urls.is_empty() {
-                        break;
-                    }
+                    // We just have one URL, so we can't switch.
+                    // Just continue retrying the same one.
                 }
 
                 if status.is_success() {
@@ -138,7 +125,7 @@ pub(crate) fn run<B: Backend + 'static>(
             .await
     });
 
-    rt.block_on(result).unwrap()
+    rt.block_on(result).expect("Failed to run downloads")
 }
 
 pub(crate) async fn async_run<B: Backend + 'static>(
@@ -158,5 +145,5 @@ pub(crate) async fn async_run<B: Backend + 'static>(
     })
     .await;
 
-    result.unwrap()
+    result.expect("Failed to run async downloads")
 }
