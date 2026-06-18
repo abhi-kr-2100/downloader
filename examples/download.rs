@@ -68,54 +68,47 @@ impl downloader::progress::Reporter for SimpleReporter {
     }
 }
 
-struct ReqwestResponse(reqwest::Response);
+/// A fake response that returns some dummy data
+struct FakeResponse {
+    data: Vec<u8>,
+    read: bool,
+}
 
 #[async_trait::async_trait]
-impl downloader::Response for ReqwestResponse {
+impl downloader::Response for FakeResponse {
     fn content_length(&self) -> Option<u64> {
-        self.0.content_length()
+        Some(self.data.len() as u64)
     }
 
     fn status(&self) -> http::StatusCode {
-        http::StatusCode::from_u16(self.0.status().as_u16()).unwrap()
+        http::StatusCode::OK
     }
 
     async fn chunk(&mut self) -> downloader::Result<Option<bytes::Bytes>> {
-        self.0
-            .chunk()
-            .await
-            .map_err(|e| downloader::Error::Backend(e.to_string()))
+        if self.read {
+            Ok(None)
+        } else {
+            self.read = true;
+            Ok(Some(bytes::Bytes::copy_from_slice(&self.data)))
+        }
     }
 }
 
 #[derive(Clone)]
-struct ReqwestBackend(reqwest::Client);
+struct FakeBackend;
 
 #[async_trait::async_trait]
-impl downloader::Backend for ReqwestBackend {
-    async fn get(&self, url: &url::Url) -> downloader::Result<Box<dyn downloader::Response + Send>> {
-        let response = self
-            .0
-            .get(url.clone())
-            .send()
-            .await
-            .map_err(|e| downloader::Error::Backend(e.to_string()))?;
-        Ok(Box::new(ReqwestResponse(response)))
+impl downloader::Backend for FakeBackend {
+    async fn get(&self, _url: &url::Url) -> downloader::Result<Box<dyn downloader::Response + Send>> {
+        Ok(Box::new(FakeResponse {
+            data: vec![0; 1024 * 1024], // 1MB of zeros
+            read: false,
+        }))
     }
 }
 
 fn main() {
-    let client = reqwest::Client::builder()
-        .user_agent(format!(
-            "{}/{}",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        ))
-        .connect_timeout(std::time::Duration::from_secs(30))
-        .timeout(std::time::Duration::from_secs(300))
-        .build()
-        .unwrap();
-    let backend = ReqwestBackend(client);
+    let backend = FakeBackend;
 
     let mut downloader = Downloader::builder()
         .backend(backend)
@@ -124,7 +117,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let dl = downloader::Download::new("https://ash-speed.hetzner.com/100MB.bin");
+    let dl = downloader::Download::new("https://example.com/fake.bin");
 
     #[cfg(not(feature = "tui"))]
     let dl = dl.progress(SimpleReporter::create());
@@ -138,6 +131,7 @@ fn main() {
                 .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
                 .collect()
         }
+        // This will probably fail verification as it's just zeros
         dl.verify(verify::with_digest::<sha3::Sha3_256>(
             decode_hex("2197e485d463ac2b868e87f0d4547b4223ff5220a0694af2593cbe7c796f7fd6").unwrap(),
         ))

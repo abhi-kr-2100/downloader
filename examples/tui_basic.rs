@@ -12,46 +12,48 @@
 use downloader::Downloader;
 use std::env::temp_dir;
 
-struct ReqwestResponse(reqwest::Response);
+/// A fake response that returns some dummy data
+struct FakeResponse {
+    data: Vec<u8>,
+    read: bool,
+}
 
 #[async_trait::async_trait]
-impl downloader::Response for ReqwestResponse {
+impl downloader::Response for FakeResponse {
     fn content_length(&self) -> Option<u64> {
-        self.0.content_length()
+        Some(self.data.len() as u64)
     }
 
     fn status(&self) -> http::StatusCode {
-        http::StatusCode::from_u16(self.0.status().as_u16()).unwrap()
+        http::StatusCode::OK
     }
 
     async fn chunk(&mut self) -> downloader::Result<Option<bytes::Bytes>> {
-        self.0
-            .chunk()
-            .await
-            .map_err(|e| downloader::Error::Backend(e.to_string()))
+        if self.read {
+            Ok(None)
+        } else {
+            self.read = true;
+            Ok(Some(bytes::Bytes::copy_from_slice(&self.data)))
+        }
     }
 }
 
 #[derive(Clone)]
-struct ReqwestBackend(reqwest::Client);
+struct FakeBackend;
 
 #[async_trait::async_trait]
-impl downloader::Backend for ReqwestBackend {
-    async fn get(&self, url: &url::Url) -> downloader::Result<Box<dyn downloader::Response + Send>> {
-        let response = self
-            .0
-            .get(url.clone())
-            .send()
-            .await
-            .map_err(|e| downloader::Error::Backend(e.to_string()))?;
-        Ok(Box::new(ReqwestResponse(response)))
+impl downloader::Backend for FakeBackend {
+    async fn get(&self, _url: &url::Url) -> downloader::Result<Box<dyn downloader::Response + Send>> {
+        Ok(Box::new(FakeResponse {
+            data: b"<html><body>Hello World</body></html>".to_vec(),
+            read: false,
+        }))
     }
 }
 
 // Run example with: cargo run --example tui_basic --features tui
 fn main() {
-    let client = reqwest::Client::new();
-    let backend = ReqwestBackend(client);
+    let backend = FakeBackend;
 
     let mut downloader = Downloader::builder()
         .backend(backend)
@@ -66,7 +68,7 @@ fn main() {
 
     // Download with an inferred filename
     let dl2 = downloader::Download::new(
-        "https://cdimage.debian.org/debian-cd/12.8.0/i386/iso-cd/debian-12.8.0-i386-netinst.iso",
+        "https://example.com/test.iso",
     );
 
     let result = downloader.download(&[dl, dl2]).unwrap();

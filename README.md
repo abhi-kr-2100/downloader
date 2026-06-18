@@ -37,35 +37,24 @@ use std::path::Path;
 use bytes::Bytes;
 use async_trait::async_trait;
 
-// Example of a minimal backend implementation (e.g., using reqwest)
+// You need to implement the Backend and Response traits for your chosen HTTP client.
+// Below is a conceptual implementation:
+
 #[derive(Clone)]
-struct MyBackend(reqwest::Client);
+struct MyBackend;
 
 #[async_trait]
 impl Backend for MyBackend {
     async fn get(&self, url: &url::Url) -> Result<Box<dyn Response + Send>> {
-        let response = self.0.get(url.clone()).send().await
-            .map_err(|e| downloader::Error::Backend(e.to_string()))?;
-        Ok(Box::new(MyResponse(response)))
-    }
-}
-
-struct MyResponse(reqwest::Response);
-
-#[async_trait]
-impl Response for MyResponse {
-    fn content_length(&self) -> Option<u64> { self.0.content_length() }
-    fn status(&self) -> http::StatusCode {
-        http::StatusCode::from_u16(self.0.status().as_u16()).unwrap()
-    }
-    async fn chunk(&mut self) -> Result<Option<Bytes>> {
-        self.0.chunk().await.map_err(|e| downloader::Error::Backend(e.to_string()))
+        // Use your HTTP client to perform the request
+        // and return a type that implements the Response trait.
+        todo!()
     }
 }
 
 fn main() {
     let mut dl = Downloader::builder()
-        .backend(MyBackend(reqwest::Client::new()))
+        .backend(MyBackend)
         .download_folder(Path::new("/tmp"))
         .build()
         .unwrap();
