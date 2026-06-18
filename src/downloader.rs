@@ -100,9 +100,6 @@ impl<B: Backend + 'static> Downloader<B> {
     /// # Errors
     /// `Error::DownloadDefinition` if the download is detected to be broken in some way.
     pub fn download(&mut self, downloads: &[Download]) -> Result<Vec<Result<DownloadSummary>>> {
-        #[cfg(feature = "tui")]
-        let factory = crate::progress::Tui::default();
-        #[cfg(not(feature = "tui"))]
         let factory = crate::progress::Noop::default();
 
         let to_process = validate_downloads(downloads, &self.download_folder, &factory)?;
@@ -126,9 +123,6 @@ impl<B: Backend + 'static> Downloader<B> {
         &mut self,
         downloads: &[Download],
     ) -> Result<Vec<Result<DownloadSummary>>> {
-        #[cfg(feature = "tui")]
-        let factory = crate::progress::Tui::default();
-        #[cfg(not(feature = "tui"))]
         let factory = crate::progress::Noop::default();
 
         let to_process = validate_downloads(downloads, &self.download_folder, &factory)?;

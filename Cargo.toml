@@ -13,7 +13,6 @@ keywords = [ "http", "https", "download" ]
 categories = [ "web-programming::http-client" ]
 
 [features]
-tui = [ "indicatif" ]
 verify = [ "digest" ]
 
 [dependencies]
@@ -23,7 +22,6 @@ thiserror = { version = "2.0" }
 tokio = { version = "1.52", features = [ "rt-multi-thread", "time" ] }
 
 digest = { version = "0.11.3", optional = true }
-indicatif = { version = "0.18.4", optional = true }
 bytes = "1.11.1"
 http = "1.4.2"
 url = "2.5.8"
