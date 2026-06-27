@@ -23,7 +23,7 @@ fn file_name_from_url(url: &str) -> std::path::PathBuf {
     if url.is_empty() {
         return std::path::PathBuf::new();
     }
-    let Ok(url) = reqwest::Url::parse(url) else {
+    let Ok(url) = url::Url::parse(url) else {
         return std::path::PathBuf::new();
     };
 
