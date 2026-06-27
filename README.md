@@ -17,18 +17,19 @@ Callbacks to provide progress information are supported as well.
 use downloader::downloader::Builder;
 use downloader::Download;
 use std::path::Path;
-use std::time::Duration;
 
 fn main() {
     let image = Download::new("https://example.com/example.png");
     // other downloads...
     // image.urls.push("https://example.com/example2.png");
 
+    // Construct a client that implements the `HttpClient` trait.
+    // let client = MyHttpClient::new();
+
     let mut dl = Builder::default()
-        .connect_timeout(Duration::from_secs(4))
         .download_folder(Path::new("../res")) // or any arbitrary path
         .parallel_requests(8)
-        .build()
+        .build_with_client(client)
         .unwrap();
 
     let response = dl.download(&[image]).unwrap(); // other error handling

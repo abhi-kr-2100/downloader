@@ -26,10 +26,12 @@
 pub mod backend;
 pub mod download;
 pub mod downloader;
+pub mod http_client;
 pub mod progress;
 
 pub use crate::download::Download;
 pub use crate::downloader::Downloader;
+pub use crate::http_client::{HttpClient, Response};
 pub use crate::progress::Progress;
 
 // ----------------------------------------------------------------------
